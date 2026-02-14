@@ -2,7 +2,7 @@ CareerNavigator Bot
 
 ## Инструменты для реализации:
 
-Telegram Bot API — платформа для работы бота \n
+Telegram Bot API — платформа для работы бота 
 Язык программирования: Python
 Библиотека для бота: python-telegram-bot
 База данных: SQLite 
