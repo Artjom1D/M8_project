@@ -106,7 +106,6 @@ class Bot:
         cur = conn.cursor()
         cur.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         if cur.fetchone():
-            # обновляем только переданные поля
             if name is not None:
                 cur.execute("UPDATE users SET name = ? WHERE user_id = ?", (name, user_id))
             if interests is not None:
