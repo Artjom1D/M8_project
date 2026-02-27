@@ -23,7 +23,6 @@ class Bot:
         conn = self.get_conn()
         cur = conn.cursor()
 
-        # Создаём таблицу вакансий
         cur.execute("PRAGMA table_info(jobs)")
         cols = [row[1] for row in cur.fetchall()]
         expected_jobs = ["id", "company", "title", "salary_from", "salary_to", "skills", "level", "category"]
@@ -44,7 +43,6 @@ class Bot:
         """
         )
 
-        # Создаём таблицу пользователей / профилей
         cur.execute("PRAGMA table_info(users)")
         cols_u = [row[1] for row in cur.fetchall()]
         expected_users = ["user_id", "name", "interests", "level", "meta"]
