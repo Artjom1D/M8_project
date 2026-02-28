@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from logic import Bot as JobBot
 
-TOKEN = "Your_Telegram_Bot_Token_Here"
+TOKEN = "8088459553:AAFax_h0eKX6qhk18mkhQqJm-pXZoxdhXuQ"
 DB_PATH = "jobs.db"
 CATEGORIES = ["IT", "Дизайн", "Маркетинг", "Наука", "Бизнес"]
 
@@ -52,10 +52,11 @@ def main_keyboard() -> ReplyKeyboardMarkup:
 
 
 def category_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура с категориями вакансий."""
+    """Клавиатура с категориями вакансий и быстрый доступ к интересам."""
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     for category in CATEGORIES:
         markup.row(category)
+    markup.row("📌 По интересам")
     markup.row("⬅️ Назад")
     return markup
 
@@ -117,11 +118,14 @@ def handle_state(message, state: UserState):
         )
 
     if state == UserState.SEARCH:
-        jobs = (
-            job_bot.find_jobs(category=text)
-            if text in CATEGORIES
-            else job_bot.find_jobs(keyword=text)
-        )
+        if text == "📌 По интересам":
+            jobs = job_bot.recommend_jobs(uid)
+        else:
+            jobs = (
+                job_bot.find_jobs(category=text)
+                if text in CATEGORIES
+                else job_bot.find_jobs(keyword=text)
+            )
         send_jobs(message.chat.id, jobs)
 
     elif state == UserState.PROFILE_INTERESTS:
@@ -184,7 +188,11 @@ def handle_menu(message):
         ),
         "🧭 Профиль": lambda: show_profile(message, uid),
         "Редактировать интересы": lambda: (
-            bot.send_message(message.chat.id, "Введите новые интересы (через запятую):"),
+            bot.send_message(
+                message.chat.id,
+                "Выберите категорию или введите интересы (через запятую):",
+                reply_markup=category_keyboard()
+            ),
             set_state(uid, UserState.PROFILE_INTERESTS)
         ),
         "Изменить уровень": lambda: (

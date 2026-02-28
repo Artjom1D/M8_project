@@ -89,13 +89,10 @@ class Bot:
                           level: Optional[str] = None, meta: Optional[str] = None) -> None:
         conn = self._get_conn()
         cur = conn.cursor()
-        
-        # Проверяем существование пользователя
         cur.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
         exists = cur.fetchone()
         
         if exists:
-            # Строим UPDATE динамически
             updates = []
             params = []
             if name is not None:
@@ -133,36 +130,25 @@ class Bot:
         columns = ["user_id", "name", "interests", "level", "meta"]
         return self._row_to_dict(row, columns)
 
-    def recommend_jobs(self, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
-        """Рекомендация вакансий по интересам и уровню пользователя."""
-        user = self.get_user(user_id)
-        if not user:
-            return []
-        
-        interests = [i.strip().lower() for i in user.get("interests", "").split(",") if i.strip()]
-        if not interests:
-            return self.find_jobs(limit=limit)
+    def recommend_jobs(self, user_id: int, limit: int = 6) -> List[Dict[str, Any]]:
+        """Возвращает несколько случайных вакансий.
 
-        candidates = {}
-        for interest in interests:
-            jobs = self.find_jobs(keyword=interest, limit=limit * 5)
-            for job in jobs:
-                job_id = job["id"]
-                if job_id not in candidates:
-                    candidates[job_id] = {"job": job, "score": 0}
-                
-                score = 0
-                if interest in (job.get("category") or "").lower():
-                    score += 2
-                if interest in (job.get("skills") or "").lower():
-                    score += 1
-                candidates[job_id]["score"] += score
+        Игнорирует профиль пользователя и просто выдаёт `limit` случайных
+        записей из таблицы `jobs`. Это используется, когда нужна простая
+        выборка без учёта интересов.
+        """
+        conn = self._get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, company, title, salary_from, salary_to, skills, level, category"
+            " FROM jobs ORDER BY RANDOM() LIMIT ?",
+            (limit,)
+        )
+        rows = cur.fetchall()
+        conn.close()
 
-        if not candidates:
-            return self.find_jobs(limit=limit)
-        
-        sorted_jobs = sorted(candidates.values(), key=lambda x: x["score"], reverse=True)
-        return [c["job"] for c in sorted_jobs[:limit]]
+        columns = ["id", "company", "title", "salary_from", "salary_to", "skills", "level", "category"]
+        return [self._row_to_dict(r, columns) for r in rows]
 
     def format_job(self, job: Dict[str, Any]) -> str:
         """Форматирует вакансию для вывода в чат."""
