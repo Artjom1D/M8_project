@@ -4,7 +4,10 @@ from enum import Enum
 from typing import Dict, Optional
 
 from logic import Bot as JobBot
-from config import TOKEN, DB_PATH, CATEGORIES
+
+TOKEN = "Your_Telegram_Bot_Token_Here"
+DB_PATH = "jobs.db"
+CATEGORIES = ["IT", "Дизайн", "Маркетинг", "Наука", "Бизнес"]
 
 # =======================
 # INIT
