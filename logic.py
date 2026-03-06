@@ -4,12 +4,15 @@ import sqlite3
 class Bot:
 
     def __init__(self, db="jobs.db"):
+        """Инициализация бота с подключением к базе данных"""
         self.db = db
 
     def conn(self):
+        """Создание и возврат подключения к базе данных"""
         return sqlite3.connect(self.db, check_same_thread=False)
 
     def init_db(self):
+        """Инициализация и создание таблиц в базе данных"""
         with self.conn() as c:
             cur = c.cursor()
 
@@ -32,11 +35,12 @@ class Bot:
                 name TEXT,
                 interests TEXT,
                 level TEXT,
-                meta TEXT
+                moreinfo TEXT
             )
             """)
 
     def add_job(self, company, title, sf, st, skills, level, category):
+        """Добавление новой вакансии в базу данных"""
         with self.conn() as c:
             cur = c.cursor()
 
@@ -48,7 +52,7 @@ class Bot:
             return cur.lastrowid
 
     def find_jobs(self, keyword=None, category=None, limit=50):
-
+        """Поиск вакансий по ключевому слову или категории"""
         where = []
         params = []
 
@@ -78,8 +82,8 @@ class Bot:
         cols = ["id","company","title","salary_from","salary_to","skills","level","category"]
         return [dict(zip(cols, r)) for r in rows]
 
-    def add_or_update_user(self, uid, name=None, interests=None, level=None, meta=None):
-
+    def add_or_update_user(self, uid, name=None, interests=None, level=None, moreinfo=None):
+        """Добавление или обновление данных пользователя"""
         with self.conn() as c:
             cur = c.cursor()
 
@@ -92,18 +96,18 @@ class Bot:
                 SET name=COALESCE(?,name),
                     interests=COALESCE(?,interests),
                     level=COALESCE(?,level),
-                    meta=COALESCE(?,meta)
+                    moreinfo=COALESCE(?,moreinfo)
                 WHERE user_id=?
-                """, (name, interests, level, meta, uid))
+                """, (name, interests, level, moreinfo, uid))
 
             else:
                 cur.execute("""
-                INSERT INTO users(user_id,name,interests,level,meta)
+                INSERT INTO users(user_id,name,interests,level,moreinfo)
                 VALUES(?,?,?,?,?)
-                """, (uid, name or "", interests or "", level or "", meta or ""))
+                """, (uid, name or "", interests or "", level or "", moreinfo or ""))
 
     def get_user(self, uid):
-
+        """Получение данных пользователя по ID"""
         with self.conn() as c:
             cur = c.cursor()
             cur.execute("SELECT * FROM users WHERE user_id=?", (uid,))
@@ -112,11 +116,11 @@ class Bot:
         if not row:
             return None
 
-        cols = ["user_id","name","interests","level","meta"]
+        cols = ["user_id","name","interests","level","moreinfo"]
         return dict(zip(cols, row))
 
-    def recommend_jobs(self, uid, limit=6):
-
+    def recommend_jobs(self, uid, limit=7):
+        """Рекомендация случайных вакансий для пользователя"""
         with self.conn() as c:
             cur = c.cursor()
 
@@ -132,11 +136,8 @@ class Bot:
         return [dict(zip(cols, r)) for r in rows]
 
     def format_job(self, job):
-
-        salary = "з/п не указана"
-
-        if job["salary_from"] or job["salary_to"]:
-            salary = f"{job['salary_from']}-{job['salary_to']}"
+        """Форматирование данных вакансии для отображения"""
+        salary = f"{job['salary_from']}-{job['salary_to']}"
 
         return (
             f"<b>{job['title']}</b> ({job['company']})\n"

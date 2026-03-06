@@ -2,7 +2,7 @@ import telebot
 from telebot.types import ReplyKeyboardMarkup
 from logic import Bot as JobBot
 
-TOKEN = "TOKEN"
+TOKEN = "8088459553:AAFax_h0eKX6qhk18mkhQqJm-pXZoxdhXuQ"
 DB_PATH = "jobs.db"
 
 CATEGORIES = ["IT", "Дизайн", "Маркетинг", "Наука", "Бизнес"]
@@ -21,6 +21,7 @@ bot = telebot.TeleBot(TOKEN)
 
 
 def set_state(uid, state=None):
+    """Установка или сброс состояния пользователя"""
     if state:
         USER_STATES[uid] = state
     else:
@@ -51,7 +52,9 @@ def start(message):
         "Я бот для поиска вакансий.\n\n"
         "• 🔍 Поиск вакансий\n"
         "• 🚀 Рекомендации\n"
-        "• 🧭 Профиль"
+        "• 🧭 Профиль\n"
+        "• ➕ Добавить вакансию\n"
+        "• ❓ Помощь"
     )
     bot.send_message(message.chat.id, text, reply_markup=main_keyboard())
 
@@ -60,12 +63,13 @@ def start(message):
 def help_cmd(message):
     bot.send_message(
         message.chat.id,
-        "/start – меню\n🔍 Поиск – поиск вакансий\n🚀 Рекомендации – случайные вакансии\n🧭 Профиль – настройки"
+        "/start – меню\n🔍 Поиск – поиск вакансий\n🚀 Рекомендации – случайные вакансии\n🧭 Профиль – настройки\n➕ Добавить вакансию – добавить новую вакансию\n❓ Помощь – получить помощь"
     )
 
 
 @bot.message_handler(func=lambda m: True)
 def handler(message):
+    """Основной обработчик входящих сообщений"""
     uid = message.from_user.id
     state = USER_STATES.get(uid)
 
@@ -81,6 +85,7 @@ def handler(message):
 
 
 def handle_state(message, state):
+    """Обработка сообщений в зависимости от состояния"""
     uid = message.from_user.id
     text = message.text.strip()
 
@@ -114,6 +119,7 @@ def handle_state(message, state):
 
 
 def handle_menu(message):
+    """Обработка команд главного меню"""
     uid = message.from_user.id
     text = message.text
 
@@ -143,11 +149,15 @@ def handle_menu(message):
     elif text == "❓ Помощь":
         help_cmd(message)
 
+    elif text == "⬅️ Назад":
+        bot.send_message(message.chat.id, "Меню", reply_markup=main_keyboard())
+
     else:
         bot.send_message(message.chat.id, "Выберите кнопку", reply_markup=main_keyboard())
 
 
 def show_profile(message, uid):
+    """Отображение профиля пользователя с настройками"""
     user = job_bot.get_user(uid)
 
     if not user:
@@ -169,6 +179,7 @@ def show_profile(message, uid):
 
 
 def add_job(message):
+    """Парсинг и добавление новой вакансии"""
     parts = [p.strip() for p in message.text.split("|")]
 
     if len(parts) != 7:
@@ -185,12 +196,15 @@ def add_job(message):
 
 
 def send_jobs(chat_id, jobs):
+    """Отправка списка найденных вакансий пользователю"""
     if not jobs:
-        bot.send_message(chat_id, "Ничего не найдено")
+        bot.send_message(chat_id, "Ничего не найдено", reply_markup=main_keyboard())
         return
 
     for job in jobs[:8]:
         bot.send_message(chat_id, job_bot.format_job(job), parse_mode="HTML")
+
+    bot.send_message(chat_id, "Для нового поиска нажмите 🔍 Поиск", reply_markup=main_keyboard())
 
 
 print("🚀 Бот запущен")
