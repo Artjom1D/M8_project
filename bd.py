@@ -6,13 +6,13 @@ cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_name TEXT NOT NULL,
-    job_title TEXT NOT NULL,
+    company TEXT,
+    title TEXT,
     salary_from INTEGER,
     salary_to INTEGER,
     skills TEXT,
     level TEXT,
-    interest_tags TEXT
+    category TEXT
 )
 """)
 
@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS users (
     history TEXT
 )
 """)
-
 
 jobs_data = [
     ("TechNova", "Senior Python Developer", 120000, 180000, "Python, Django, PostgreSQL, Docker", "сложно", "IT"),
@@ -58,7 +57,6 @@ jobs_data = [
     ("LabScience", "Chemist", 70000, 110000, "Chemistry, Laboratory Skills, Analysis, Safety", "средне", "Наука"),
     ("TechSupport", "Support Engineer", 40000, 65000, "Customer Support, Troubleshooting, Ticketing", "легко", "IT"),
 ]
-
 
 cursor.executemany("""
 INSERT INTO jobs (company, title, salary_from, salary_to, skills, level, category)

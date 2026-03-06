@@ -1,26 +1,20 @@
 import sqlite3
-from typing import List, Dict, Optional, Any
 
 
 class Bot:
-    """Лёгкая логика работы с базой вакансий и профилями пользователей."""
 
-    def __init__(self, db_path: str = "jobs.db"):
-        self.db = db_path
+    def __init__(self, db="jobs.db"):
+        self.db = db
 
-    def _get_conn(self):
+    def conn(self):
         return sqlite3.connect(self.db, check_same_thread=False)
 
-    def _row_to_dict(self, row, columns: List[str]) -> Dict[str, Any]:
-        """Преобразует кортеж БД в словарь."""
-        return dict(zip(columns, row)) if row else None
+    def init_db(self):
+        with self.conn() as c:
+            cur = c.cursor()
 
-    def init_db(self) -> None:
-        conn = self._get_conn()
-        cur = conn.cursor()
-
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS jobs (
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS jobs(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 company TEXT,
                 title TEXT,
@@ -30,139 +24,123 @@ class Bot:
                 level TEXT,
                 category TEXT
             )
-        """)
+            """)
 
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS users(
                 user_id INTEGER PRIMARY KEY,
                 name TEXT,
                 interests TEXT,
                 level TEXT,
                 meta TEXT
             )
-        """)
+            """)
 
-        conn.commit()
-        conn.close()
+    def add_job(self, company, title, sf, st, skills, level, category):
+        with self.conn() as c:
+            cur = c.cursor()
 
-    def add_job(self, company: str, title: str, salary_from: Optional[int], salary_to: Optional[int], 
-                skills: str, level: str, category: str) -> int:
-        conn = self._get_conn()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO jobs (company, title, salary_from, salary_to, skills, level, category) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (company, title, salary_from or 0, salary_to or 0, skills, level, category))
-        job_id = cur.lastrowid
-        conn.commit()
-        conn.close()
-        return job_id
+            cur.execute("""
+            INSERT INTO jobs(company,title,salary_from,salary_to,skills,level,category)
+            VALUES(?,?,?,?,?,?,?)
+            """, (company, title, sf or 0, st or 0, skills, level, category))
 
-    def find_jobs(self, keyword: Optional[str] = None, category: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        clauses = []
+            return cur.lastrowid
+
+    def find_jobs(self, keyword=None, category=None, limit=50):
+
+        where = []
         params = []
-        
+
         if keyword:
-            clauses.append("(title LIKE ? OR skills LIKE ? OR company LIKE ?)")
-            pattern = f"%{keyword}%"
-            params.extend([pattern, pattern, pattern])
-        
+            where.append("(title LIKE ? OR skills LIKE ? OR company LIKE ?)")
+            k = f"%{keyword}%"
+            params += [k, k, k]
+
         if category:
-            clauses.append("category = ?")
+            where.append("category=?")
             params.append(category)
-        
-        where_clause = " WHERE " + " AND ".join(clauses) if clauses else ""
-        q = f"""SELECT id, company, title, salary_from, salary_to, skills, level, category 
-                FROM jobs{where_clause} ORDER BY id DESC LIMIT ?"""
+
+        query = "SELECT * FROM jobs"
+
+        if where:
+            query += " WHERE " + " AND ".join(where)
+
+        query += " ORDER BY id DESC LIMIT ?"
         params.append(limit)
 
-        conn = self._get_conn()
-        cur = conn.cursor()
-        cur.execute(q, params)
-        rows = cur.fetchall()
-        conn.close()
-        
-        columns = ["id", "company", "title", "salary_from", "salary_to", "skills", "level", "category"]
-        return [self._row_to_dict(r, columns) for r in rows]
+        with self.conn() as c:
+            cur = c.cursor()
+            cur.execute(query, params)
 
-    def add_or_update_user(self, user_id: int, name: Optional[str] = None, interests: Optional[str] = None, 
-                          level: Optional[str] = None, meta: Optional[str] = None) -> None:
-        conn = self._get_conn()
-        cur = conn.cursor()
-        cur.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-        exists = cur.fetchone()
-        
-        if exists:
-            updates = []
-            params = []
-            if name is not None:
-                updates.append("name = ?")
-                params.append(name)
-            if interests is not None:
-                updates.append("interests = ?")
-                params.append(interests)
-            if level is not None:
-                updates.append("level = ?")
-                params.append(level)
-            if meta is not None:
-                updates.append("meta = ?")
-                params.append(meta)
-            
-            if updates:
-                params.append(user_id)
-                cur.execute(f"UPDATE users SET {', '.join(updates)} WHERE user_id = ?", params)
-        else:
+            rows = cur.fetchall()
+
+        cols = ["id","company","title","salary_from","salary_to","skills","level","category"]
+        return [dict(zip(cols, r)) for r in rows]
+
+    def add_or_update_user(self, uid, name=None, interests=None, level=None, meta=None):
+
+        with self.conn() as c:
+            cur = c.cursor()
+
+            cur.execute("SELECT user_id FROM users WHERE user_id=?", (uid,))
+            exists = cur.fetchone()
+
+            if exists:
+                cur.execute("""
+                UPDATE users
+                SET name=COALESCE(?,name),
+                    interests=COALESCE(?,interests),
+                    level=COALESCE(?,level),
+                    meta=COALESCE(?,meta)
+                WHERE user_id=?
+                """, (name, interests, level, meta, uid))
+
+            else:
+                cur.execute("""
+                INSERT INTO users(user_id,name,interests,level,meta)
+                VALUES(?,?,?,?,?)
+                """, (uid, name or "", interests or "", level or "", meta or ""))
+
+    def get_user(self, uid):
+
+        with self.conn() as c:
+            cur = c.cursor()
+            cur.execute("SELECT * FROM users WHERE user_id=?", (uid,))
+            row = cur.fetchone()
+
+        if not row:
+            return None
+
+        cols = ["user_id","name","interests","level","meta"]
+        return dict(zip(cols, row))
+
+    def recommend_jobs(self, uid, limit=6):
+
+        with self.conn() as c:
+            cur = c.cursor()
+
             cur.execute("""
-                INSERT INTO users (user_id, name, interests, level, meta) 
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, name or "", interests or "", level or "", meta or ""))
-        
-        conn.commit()
-        conn.close()
+            SELECT * FROM jobs
+            ORDER BY RANDOM()
+            LIMIT ?
+            """, (limit,))
 
-    def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
-        conn = self._get_conn()
-        cur = conn.cursor()
-        cur.execute("SELECT user_id, name, interests, level, meta FROM users WHERE user_id = ?", (user_id,))
-        row = cur.fetchone()
-        conn.close()
-        
-        columns = ["user_id", "name", "interests", "level", "meta"]
-        return self._row_to_dict(row, columns)
+            rows = cur.fetchall()
 
-    def recommend_jobs(self, user_id: int, limit: int = 6) -> List[Dict[str, Any]]:
-        """Возвращает несколько случайных вакансий.
+        cols = ["id","company","title","salary_from","salary_to","skills","level","category"]
+        return [dict(zip(cols, r)) for r in rows]
 
-        Игнорирует профиль пользователя и просто выдаёт `limit` случайных
-        записей из таблицы `jobs`. Это используется, когда нужна простая
-        выборка без учёта интересов.
-        """
-        conn = self._get_conn()
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id, company, title, salary_from, salary_to, skills, level, category"
-            " FROM jobs ORDER BY RANDOM() LIMIT ?",
-            (limit,)
-        )
-        rows = cur.fetchall()
-        conn.close()
+    def format_job(self, job):
 
-        columns = ["id", "company", "title", "salary_from", "salary_to", "skills", "level", "category"]
-        return [self._row_to_dict(r, columns) for r in rows]
+        salary = "з/п не указана"
 
-    def format_job(self, job: Dict[str, Any]) -> str:
-        """Форматирует вакансию для вывода в чат."""
-        if not job:
-            return "Вакансия не найдена"
-        
-        salary_from = job.get("salary_from") or 0
-        salary_to = job.get("salary_to") or 0
-        salary = f"{salary_from}-{salary_to}" if salary_from or salary_to else "з/п не указана"
-        
+        if job["salary_from"] or job["salary_to"]:
+            salary = f"{job['salary_from']}-{job['salary_to']}"
+
         return (
-            f"<b>{job.get('title')}</b> ({job.get('company')})\n"
+            f"<b>{job['title']}</b> ({job['company']})\n"
             f"💰 {salary}\n"
-            f"🛠 {job.get('skills')}\n"
-            f"📂 {job.get('category')}, {job.get('level')}"
+            f"🛠 {job['skills']}\n"
+            f"📂 {job['category']}, {job['level']}"
         )
-
