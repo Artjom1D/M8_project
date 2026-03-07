@@ -51,7 +51,7 @@ class Bot:
 
             return cur.lastrowid
 
-    def find_jobs(self, keyword=None, category=None, limit=50):
+    def find_jobs(self, keyword=None, category=None, limit=7):
         """Поиск вакансий по ключевому слову или категории"""
         where = []
         params = []
@@ -61,7 +61,7 @@ class Bot:
             k = f"%{keyword}%"
             params += [k, k, k]
 
-        if category:
+        elif category:
             where.append("category=?")
             params.append(category)
 
@@ -70,7 +70,7 @@ class Bot:
         if where:
             query += " WHERE " + " AND ".join(where)
 
-        query += " ORDER BY id DESC LIMIT ?"
+        query += " ORDER BY RANDOM() DESC LIMIT ?"
         params.append(limit)
 
         with self.conn() as c:
@@ -81,6 +81,21 @@ class Bot:
 
         cols = ["id","company","title","salary_from","salary_to","skills","level","category"]
         return [dict(zip(cols, r)) for r in rows]
+    def find_jobs_by_interests(self, uid, limit=7):
+        """Поиск вакансий по интересам пользователя"""
+        with self.conn() as c:
+            cur = c.cursor()
+            
+
+            interests = cur.execute("SELECT interests FROM users WHERE user_id=?", (uid,)).fetchone()
+            if interests == None:
+                return []
+            else:
+                interest = interests[0]
+                jobs = cur.execute("""SELECT * FROM jobs WHERE category = ? ORDER BY RANDOM() LIMIT ?""", (interest, limit)).fetchall()
+
+        cols = ["id","company","title","salary_from","salary_to","skills","level","category"]
+        return [dict(zip(cols, r)) for r in jobs]
 
     def add_or_update_user(self, uid, name=None, interests=None, level=None, moreinfo=None):
         """Добавление или обновление данных пользователя"""

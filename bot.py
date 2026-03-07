@@ -44,6 +44,12 @@ def category_keyboard():
     kb.row("⬅️ Назад")
     return kb
 
+def category_keyboard1():
+    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    for c in CATEGORIES:
+        kb.row(c)
+    kb.row("⬅️ Назад")
+    return kb
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -96,7 +102,7 @@ def handle_state(message, state):
 
     if state == SEARCH:
         if text == "📌 По интересам":
-            jobs = job_bot.recommend_jobs(uid)
+            jobs = job_bot.find_jobs_by_interests(uid)
         elif text in CATEGORIES:
             jobs = job_bot.find_jobs(category=text)
         else:
@@ -128,14 +134,14 @@ def handle_menu(message):
         set_state(uid, SEARCH)
 
     elif text == "🚀 Рекомендации":
-        jobs = job_bot.recommend_jobs(uid) or job_bot.find_jobs(limit=5)
+        jobs = job_bot.recommend_jobs(uid)
         send_jobs(message.chat.id, jobs)
 
     elif text == "🧭 Профиль":
         show_profile(message, uid)
 
     elif text == "Редактировать интересы":
-        bot.send_message(message.chat.id, "Введите интересы:", reply_markup=category_keyboard())
+        bot.send_message(message.chat.id, "Введите интересы:", reply_markup=category_keyboard1())
         set_state(uid, PROFILE_INTERESTS)
 
     elif text == "Изменить уровень":
