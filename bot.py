@@ -1,8 +1,8 @@
 import telebot
 from telebot.types import ReplyKeyboardMarkup
-from logic import Bot as JobBot
+from logic import Bot
 
-TOKEN = "8088459553:AAFax_h0eKX6qhk18mkhQqJm-pXZoxdhXuQ"
+TOKEN = "8722204888:AAECI6g-rpeQbUPIAXQr8LGG5EUqR-qDFW4"
 DB_PATH = "jobs.db"
 
 CATEGORIES = ["IT", "Дизайн", "Маркетинг", "Наука", "Бизнес"]
@@ -14,7 +14,7 @@ ADD_JOB = "add_job"
 
 USER_STATES = {}
 
-job_bot = JobBot(DB_PATH)
+job_bot = Bot(DB_PATH)
 job_bot.init_db()
 
 bot = telebot.TeleBot(TOKEN)
